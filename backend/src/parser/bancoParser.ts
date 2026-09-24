@@ -1,44 +1,67 @@
 export interface PagoParseado {
   banco: string;
   monto: number;
-  referencia: string | null;
-  telefono: string | null;
-  cedula: string | null;
+  referencia: string;
+  telefonoPagador: string | null;
+  telefonoReceptor: string | null;
   fechaPago: Date;
 }
 
 /**
- * PLACEHOLDER — ajustar en cuanto tengamos ejemplos reales del correo del banco.
+ * Parser específico para las notificaciones de "pago móvil" de Bancaribe
+ * (remitente: conexionmipago@bancaribe.com.ve). Formato real observado:
  *
- * Los patrones de abajo son genéricos (formatos típicos de notificación de pago
- * móvil en Venezuela: "Monto: Bs. 1.234,56", "Referencia: 000123456",
- * "Telf: 0412-1234567"). Reemplazar por los patrones exactos del correo real.
+ *   Bancaribe se complace en informarle que el 01-01-2026 a las 12:00:00,
+ *   recibió un pago móvil con los siguientes datos:
+ *
+ *   Monto: 1234,56 Bolívares
+ *   Teléfono pagador: 04140000000
+ *   Teléfono receptor: 04240000000
+ *   Referencia: 000000000000
  */
-const MONTO_RE = /(?:monto|bs\.?)\s*[:\s]\s*([\d.,]+)/i;
-const REFERENCIA_RE = /referencia\s*[:\s]\s*(\d+)/i;
-const TELEFONO_RE = /(?:tel[eé]fono|telf|celular)\s*[:\s]\s*(\+?\d[\d-]{6,})/i;
-const CEDULA_RE = /(?:c[eé]dula|documento)\s*[:\s]\s*([VEJve]-?\d{6,9})/i;
+const FECHA_RE = /el\s+(\d{2})-(\d{2})-(\d{4})\s+a las\s+(\d{2}):(\d{2}):(\d{2})/i;
+const MONTO_RE = /Monto:\s*([\d.,]+)\s*Bol[ií]vares/i;
+const TELEFONO_PAGADOR_RE = /Tel[eé]fono pagador:\s*(\d+)/i;
+const TELEFONO_RECEPTOR_RE = /Tel[eé]fono receptor:\s*(\d+)/i;
+const REFERENCIA_RE = /Referencia:\s*(\d+)/i;
 
 function parseMontoVenezolano(raw: string): number {
-  // "1.234,56" -> 1234.56
+  // "11.954,00" o "11954,00" -> 11954.00
   const normalizado = raw.replace(/\./g, "").replace(",", ".");
   return Number.parseFloat(normalizado);
 }
 
-export function parseCorreoPagoMovil(textoPlano: string, fechaCorreo: Date): PagoParseado | null {
-  const montoMatch = textoPlano.match(MONTO_RE);
-  if (!montoMatch) return null;
+export function parseCorreoPagoMovilBancaribe(
+  texto: string,
+  fechaCorreo: Date
+): PagoParseado | null {
+  const montoMatch = texto.match(MONTO_RE);
+  const referenciaMatch = texto.match(REFERENCIA_RE);
+  if (!montoMatch || !referenciaMatch) return null;
 
-  const referenciaMatch = textoPlano.match(REFERENCIA_RE);
-  const telefonoMatch = textoPlano.match(TELEFONO_RE);
-  const cedulaMatch = textoPlano.match(CEDULA_RE);
+  const telefonoPagadorMatch = texto.match(TELEFONO_PAGADOR_RE);
+  const telefonoReceptorMatch = texto.match(TELEFONO_RECEPTOR_RE);
+  const fechaMatch = texto.match(FECHA_RE);
+
+  let fechaPago = fechaCorreo;
+  if (fechaMatch) {
+    const [, dd, mm, yyyy, hh, min, ss] = fechaMatch;
+    fechaPago = new Date(
+      Number(yyyy),
+      Number(mm) - 1,
+      Number(dd),
+      Number(hh),
+      Number(min),
+      Number(ss)
+    );
+  }
 
   return {
-    banco: "PENDIENTE_DEFINIR",
+    banco: "Bancaribe",
     monto: parseMontoVenezolano(montoMatch[1]),
-    referencia: referenciaMatch?.[1] ?? null,
-    telefono: telefonoMatch?.[1]?.replace(/-/g, "") ?? null,
-    cedula: cedulaMatch?.[1]?.toUpperCase() ?? null,
-    fechaPago: fechaCorreo,
+    referencia: referenciaMatch[1],
+    telefonoPagador: telefonoPagadorMatch?.[1] ?? null,
+    telefonoReceptor: telefonoReceptorMatch?.[1] ?? null,
+    fechaPago,
   };
 }

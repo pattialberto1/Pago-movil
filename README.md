@@ -18,9 +18,9 @@ automáticamente contra los pedidos/ventas pendientes.
 - ✅ Modelo de datos (Prisma): `PagoRecibido`, `PedidoPendiente`, `Conciliacion`.
 - ✅ Integración con Gmail API (OAuth2, solo lectura).
 - ✅ Motor de conciliación básico (monto exacto + ventana de tiempo).
-- ⚠️ **Pendiente**: el parser en `backend/src/parser/bancoParser.ts` usa
-  patrones **genéricos de ejemplo**. Hay que reemplazarlos por los patrones
-  exactos del correo real del banco en cuanto se compartan ejemplos.
+- ✅ Parser ajustado al formato real de **Bancaribe** (remitente
+  `conexionmipago@bancaribe.com.ve`), extrayendo monto, teléfono pagador,
+  teléfono receptor, referencia y fecha/hora exacta de la transacción.
 
 ## Setup — Fase 0
 
@@ -72,9 +72,11 @@ npm run dev               # dashboard en :5173
 
 ## Próximo paso
 
-Compartir 2-3 correos reales de notificación de pago móvil (datos sensibles
-ocultos si se quiere) para ajustar `bancoParser.ts` con el formato exacto
-del banco y confirmar el nombre del banco/remitente.
+Con las credenciales de Google Cloud y el refresh token generados (paso 1),
+levantar el backend apuntando a un buzón real y confirmar en los logs que
+los correos de Bancaribe se están parseando y conciliando correctamente.
+Si el banco cambia el formato del correo, ajustar las expresiones
+regulares en `backend/src/parser/bancoParser.ts`.
 
 ## Despliegue recomendado
 

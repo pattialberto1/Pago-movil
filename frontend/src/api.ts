@@ -5,7 +5,7 @@ export interface Pago {
   banco: string;
   monto: string;
   referencia: string | null;
-  telefono: string | null;
+  telefonoPagador: string | null;
   fechaPago: string;
   conciliacion: { estado: string; pedido: Pedido | null } | null;
 }

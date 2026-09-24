@@ -21,8 +21,8 @@ model PagoRecibido {
   banco          String
   monto          Decimal
   referencia     String?
-  telefono       String?
-  cedula         String?
+  telefonoPagador   String?
+  telefonoReceptor  String?
   fechaPago      DateTime
   fechaCorreo    DateTime
   rawSnippet     String?

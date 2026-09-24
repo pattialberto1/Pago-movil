@@ -120,7 +120,7 @@ export default function App() {
                 <td>{p.banco}</td>
                 <td>{p.monto}</td>
                 <td>{p.referencia ?? "-"}</td>
-                <td>{p.telefono ?? "-"}</td>
+                <td>{p.telefonoPagador ?? "-"}</td>
                 <td>{p.conciliacion ? <EstadoBadge estado={p.conciliacion.estado} /> : "-"}</td>
               </tr>
             ))}

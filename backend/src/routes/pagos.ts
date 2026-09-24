@@ -9,7 +9,7 @@ pagosRouter.get("/", async (req, res) => {
   const pagos = await prisma.pagoRecibido.findMany({
     where: {
       referencia: referencia ? { contains: String(referencia) } : undefined,
-      telefono: telefono ? { contains: String(telefono) } : undefined,
+      telefonoPagador: telefono ? { contains: String(telefono) } : undefined,
       monto: monto ? Number(monto) : undefined,
     },
     include: { conciliacion: { include: { pedido: true } } },
