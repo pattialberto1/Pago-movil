@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EstadoConciliacion {
+  PENDIENTE
+  VERIFICADO
+  SIN_MATCH
+  AMBIGUO
+  ANULADO
+}
+
+model PagoRecibido {
+  id             String   @id @default(cuid())
+  gmailMessageId String   @unique
+  banco          String
+  monto          Decimal
+  referencia     String?
+  telefono       String?
+  cedula         String?
+  fechaPago      DateTime
+  fechaCorreo    DateTime
+  rawSnippet     String?
+  createdAt      DateTime @default(now())
+
+  conciliacion   Conciliacion?
+}
+
+model PedidoPendiente {
+  id             String   @id @default(cuid())
+  descripcion    String
+  montoEsperado  Decimal
+  clienteNombre  String?
+  clienteTelefono String?
+  estado         String   @default("PENDIENTE")
+  createdAt      DateTime @default(now())
+
+  conciliacion   Conciliacion?
+}
+
+model Conciliacion {
+  id           String             @id @default(cuid())
+  pagoId       String             @unique
+  pago         PagoRecibido       @relation(fields: [pagoId], references: [id])
+  pedidoId     String?            @unique
+  pedido       PedidoPendiente?   @relation(fields: [pedidoId], references: [id])
+  estado       EstadoConciliacion @default(PENDIENTE)
+  metodoMatch  String?
+  revisadoPor  String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}
