@@ -25,6 +25,23 @@ const authUrl = oauth2Client.generateAuthUrl({
   scope: ["https://www.googleapis.com/auth/gmail.readonly"],
 });
 
+// Uso remoto: si el navegador no alcanza este equipo, se pasa como argumento
+// la URL a la que Google redirigió (http://localhost:3456/?code=...).
+const pegado = process.argv[2];
+if (pegado) {
+  const code = pegado.startsWith("http") ? new URL(pegado).searchParams.get("code") : pegado;
+  oauth2Client
+    .getToken(code ?? "")
+    .then(({ tokens }) => console.log(`GMAIL_REFRESH_TOKEN=${tokens.refresh_token}`))
+    .catch((err) => {
+      console.error(err.response?.data ?? err);
+      process.exit(1);
+    });
+} else {
+  startServer();
+}
+
+function startServer() {
 const server = http.createServer(async (req, res) => {
   const code = new URL(req.url ?? "/", REDIRECT_URI).searchParams.get("code");
   if (!code) {
@@ -47,3 +64,4 @@ server.listen(PORT, () => {
   console.log("\nAbre esta URL en el navegador e inicia sesión con el correo que recibe las notificaciones:\n");
   console.log(authUrl, "\n");
 });
+}
