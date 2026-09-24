@@ -1,46 +1,49 @@
 /**
- * Script de un solo uso (Fase 0) para obtener el GMAIL_REFRESH_TOKEN.
- *
- * 1. Crea un proyecto en https://console.cloud.google.com/, habilita "Gmail API"
- *    y crea credenciales OAuth 2.0 de tipo "Desktop app". Copia el client id/secret
- *    en el .env como GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET.
- * 2. Ejecuta: npx tsx src/gmail/get-refresh-token.ts
- * 3. Abre la URL que imprime, inicia sesión con el correo de la empresa,
- *    autoriza el scope de solo lectura, y pega el "code" que te da Google.
- * 4. El script imprime el refresh_token: cópialo a GMAIL_REFRESH_TOKEN en .env
+ * Script de un solo uso para obtener GMAIL_REFRESH_TOKEN.
+ * Ejecutar en tu computadora (necesita abrir el navegador):
+ *   npx tsx src/gmail/get-refresh-token.ts
  */
 import "dotenv/config";
-import readline from "node:readline/promises";
+import http from "node:http";
 import { google } from "googleapis";
 
-async function main() {
-  const clientId = process.env.GMAIL_CLIENT_ID;
-  const clientSecret = process.env.GMAIL_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    throw new Error("Define GMAIL_CLIENT_ID y GMAIL_CLIENT_SECRET en backend/.env primero");
-  }
+const PORT = 3456;
+const REDIRECT_URI = `http://localhost:${PORT}`;
 
-  const redirectUri = "urn:ietf:wg:oauth:2.0:oob";
-  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
-
-  const authUrl = oauth2Client.generateAuthUrl({
-    access_type: "offline",
-    prompt: "consent",
-    scope: ["https://www.googleapis.com/auth/gmail.readonly"],
-  });
-
-  console.log("\nAbre esta URL, autoriza el acceso con el correo de la empresa, y copia el código:\n");
-  console.log(authUrl, "\n");
-
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  const code = await rl.question("Pega aquí el código: ");
-  rl.close();
-
-  const { tokens } = await oauth2Client.getToken(code.trim());
-  console.log("\nGMAIL_REFRESH_TOKEN=", tokens.refresh_token, "\n");
+const clientId = process.env.GMAIL_CLIENT_ID;
+const clientSecret = process.env.GMAIL_CLIENT_SECRET;
+if (!clientId || !clientSecret) {
+  console.error("Define GMAIL_CLIENT_ID y GMAIL_CLIENT_SECRET en backend/.env primero");
+  process.exit(1);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
+const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, REDIRECT_URI);
+
+const authUrl = oauth2Client.generateAuthUrl({
+  access_type: "offline",
+  prompt: "consent",
+  scope: ["https://www.googleapis.com/auth/gmail.readonly"],
+});
+
+const server = http.createServer(async (req, res) => {
+  const code = new URL(req.url ?? "/", REDIRECT_URI).searchParams.get("code");
+  if (!code) {
+    res.end("Falta el código de autorización.");
+    return;
+  }
+  try {
+    const { tokens } = await oauth2Client.getToken(code);
+    res.end("Listo. Vuelve a la terminal y copia el token.");
+    console.log(`\nGMAIL_REFRESH_TOKEN=${tokens.refresh_token}\n`);
+  } catch (err) {
+    res.end("Error obteniendo el token, revisa la terminal.");
+    console.error(err);
+  } finally {
+    server.close();
+  }
+});
+
+server.listen(PORT, () => {
+  console.log("\nAbre esta URL en el navegador e inicia sesión con el correo que recibe las notificaciones:\n");
+  console.log(authUrl, "\n");
 });

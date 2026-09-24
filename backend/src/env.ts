@@ -13,7 +13,7 @@ export const env = {
     clientId: required("GMAIL_CLIENT_ID"),
     clientSecret: required("GMAIL_CLIENT_SECRET"),
     refreshToken: required("GMAIL_REFRESH_TOKEN"),
-    redirectUri: process.env.GMAIL_REDIRECT_URI ?? "urn:ietf:wg:oauth:2.0:oob",
+    redirectUri: process.env.GMAIL_REDIRECT_URI ?? "http://localhost:3456",
     // Correo/remitente del banco que envía las notificaciones de pago móvil.
     bankSenderFilter: required("BANK_SENDER_EMAIL"),
   },
