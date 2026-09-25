@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, getClave, NoAutorizado, setClave, type Pago, type PagosDelDia } from "./api";
+import {
+  api,
+  getNombreGuardado,
+  getSesion,
+  NoAutorizado,
+  setSesion,
+  type Pago,
+  type PagosDelDia,
+  type Sesion,
+} from "./api";
 import "./App.css";
 
 const TZ = "America/Caracas";
@@ -18,6 +27,7 @@ const diaLargo = (iso: string) => {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 };
 const diaDe = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: TZ });
+const cuando = (iso: string) => (diaDe(iso) === hoy() ? `hoy a las ${hora(iso)}` : `${diaLargo(iso)}, ${hora(iso)}`);
 
 function Referencia({ valor, resaltar = 6 }: { valor: string; resaltar?: number }) {
   const corte = Math.max(0, valor.length - resaltar);
@@ -29,8 +39,9 @@ function Referencia({ valor, resaltar = 6 }: { valor: string; resaltar?: number 
   );
 }
 
-function Login({ onEntrar }: { onEntrar: (clave: string) => void }) {
-  const [clave, setValor] = useState("");
+function Login({ onEntrar }: { onEntrar: (sesion: Sesion) => void }) {
+  const [nombre, setNombre] = useState(getNombreGuardado());
+  const [clave, setClave] = useState("");
   const [error, setError] = useState("");
 
   async function entrar(e: React.FormEvent) {
@@ -38,7 +49,7 @@ function Login({ onEntrar }: { onEntrar: (clave: string) => void }) {
     setError("");
     try {
       await api.login(clave);
-      onEntrar(clave);
+      onEntrar({ clave, nombre: nombre.trim() });
     } catch (err) {
       setError(err instanceof NoAutorizado ? "Contraseña incorrecta" : "No se pudo conectar");
     }
@@ -47,14 +58,11 @@ function Login({ onEntrar }: { onEntrar: (clave: string) => void }) {
   return (
     <form className="login" onSubmit={entrar}>
       <h1>Pago Móvil</h1>
-      <input
-        type="password"
-        placeholder="Contraseña"
-        value={clave}
-        onChange={(e) => setValor(e.target.value)}
-        autoFocus
-      />
-      <button type="submit">Entrar</button>
+      <input placeholder="Tu nombre o caja" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
+      <input type="password" placeholder="Contraseña" value={clave} onChange={(e) => setClave(e.target.value)} required />
+      <button type="submit" disabled={!nombre.trim() || !clave}>
+        Entrar
+      </button>
       {error && <p className="error">{error}</p>}
     </form>
   );
@@ -62,26 +70,70 @@ function Login({ onEntrar }: { onEntrar: (clave: string) => void }) {
 
 type Resultado = { ref: string; pagos: Pago[] } | null;
 
-function Verificador({ clave, onSalir }: { clave: string; onSalir: () => void }) {
+function Verificador({ sesion, onSalir }: { sesion: Sesion; onSalir: () => void }) {
   const [ref, setRef] = useState("");
   const [resultado, setResultado] = useState<Resultado>(null);
+  const [marcadosAqui, setMarcadosAqui] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
-  const [buscando, setBuscando] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+
+  const manejarError = (err: unknown) => {
+    if (err instanceof NoAutorizado) onSalir();
+    else setError(err instanceof Error ? err.message : "Error");
+  };
+
+  const reemplazar = (pago: Pago) =>
+    setResultado((r) => r && { ...r, pagos: r.pagos.map((p) => (p.id === pago.id ? pago : p)) });
 
   async function verificar(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    setBuscando(true);
+    setOcupado(true);
+    setMarcadosAqui(new Set());
     try {
-      setResultado(await api.buscar(clave, ref));
+      setResultado(await api.buscar(sesion.clave, ref));
     } catch (err) {
-      if (err instanceof NoAutorizado) onSalir();
-      else setError(err instanceof Error ? err.message : "Error");
+      manejarError(err);
       setResultado(null);
     } finally {
-      setBuscando(false);
+      setOcupado(false);
     }
   }
+
+  async function cobrar(pago: Pago) {
+    setError("");
+    setOcupado(true);
+    try {
+      const { yaCobrado, pago: actualizado } = await api.cobrar(sesion, pago.id);
+      if (!yaCobrado) setMarcadosAqui((s) => new Set(s).add(pago.id));
+      reemplazar(actualizado);
+    } catch (err) {
+      manejarError(err);
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  async function deshacer(pago: Pago) {
+    setError("");
+    setOcupado(true);
+    try {
+      await api.deshacer(sesion.clave, pago.id);
+      setMarcadosAqui((s) => {
+        const copia = new Set(s);
+        copia.delete(pago.id);
+        return copia;
+      });
+      reemplazar({ ...pago, cobradoAt: null, cobradoPor: null });
+    } catch (err) {
+      manejarError(err);
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  const disponibles = resultado?.pagos.filter((p) => !p.cobradoAt || marcadosAqui.has(p.id)) ?? [];
+  const todosCobrados = !!resultado && resultado.pagos.length > 0 && disponibles.length === 0;
 
   return (
     <section className="verificador">
@@ -99,7 +151,7 @@ function Verificador({ clave, onSalir }: { clave: string; onSalir: () => void })
             }}
             autoFocus
           />
-          <button type="submit" disabled={buscando || ref.length < 4}>
+          <button type="submit" disabled={ocupado || ref.length < 4}>
             Verificar
           </button>
         </div>
@@ -110,14 +162,16 @@ function Verificador({ clave, onSalir }: { clave: string; onSalir: () => void })
       {resultado && resultado.pagos.length === 0 && (
         <div className="resultado no">
           <div className="titulo">✗ NO ENCONTRADO</div>
-          <p>No hay ningún pago con referencia terminada en <strong>{resultado.ref}</strong> en los últimos 3 días.</p>
+          <p>
+            No hay ningún pago con referencia terminada en <strong>{resultado.ref}</strong> en los últimos 3 días.
+          </p>
           <p className="nota">Si el cliente acaba de pagar, espera 2 minutos y vuelve a verificar.</p>
         </div>
       )}
 
       {resultado && resultado.pagos.length > 0 && (
-        <div className="resultado si">
-          <div className="titulo">✓ PAGO RECIBIDO</div>
+        <div className={`resultado ${todosCobrados ? "no" : "si"}`}>
+          <div className="titulo">{todosCobrados ? "⚠ YA FUE COBRADO" : "✓ PAGO RECIBIDO"}</div>
           {resultado.pagos.length > 1 && (
             <p className="nota">
               Hay {resultado.pagos.length} pagos que terminan en {resultado.ref}. Confirma el monto con el cliente.
@@ -134,6 +188,25 @@ function Verificador({ clave, onSalir }: { clave: string; onSalir: () => void })
                 Ref. <Referencia valor={p.referencia} resaltar={resultado.ref.length} />
               </div>
               {p.telefonoPagador && <div>Tel. {p.telefonoPagador}</div>}
+
+              {!p.cobradoAt && (
+                <button className="cobrar" onClick={() => cobrar(p)} disabled={ocupado}>
+                  Marcar como cobrado
+                </button>
+              )}
+              {p.cobradoAt && marcadosAqui.has(p.id) && (
+                <div className="cobrado-aqui">
+                  ✓ Marcado como cobrado
+                  <button className="enlace" onClick={() => deshacer(p)} disabled={ocupado}>
+                    Deshacer
+                  </button>
+                </div>
+              )}
+              {p.cobradoAt && !marcadosAqui.has(p.id) && (
+                <div className="ya-cobrado">
+                  Ya lo cobró <strong>{p.cobradoPor}</strong> {cuando(p.cobradoAt)}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -162,6 +235,7 @@ function ListaDelDia({ clave, onSalir }: { clave: string; onSalir: () => void })
   }, [cargar, fecha]);
 
   const esHoy = fecha === hoy();
+  const cobrados = datos?.pagos.filter((p) => p.cobradoAt).length ?? 0;
 
   return (
     <section className="dia">
@@ -173,7 +247,7 @@ function ListaDelDia({ clave, onSalir }: { clave: string; onSalir: () => void })
           </h2>
           {datos && (
             <p className="resumen">
-              {datos.cantidad} pagos · Bs {bs.format(datos.total)}
+              {datos.cantidad} pagos · {cobrados} cobrados · Bs {bs.format(datos.total)}
             </p>
           )}
         </div>
@@ -189,18 +263,21 @@ function ListaDelDia({ clave, onSalir }: { clave: string; onSalir: () => void })
               <th>Hora</th>
               <th>Referencia</th>
               <th className="num">Monto (Bs)</th>
-              <th className="tel">Teléfono</th>
+              <th className="tel">Cobrado por</th>
             </tr>
           </thead>
           <tbody>
             {datos.pagos.map((p) => (
-              <tr key={p.id}>
-                <td>{hora(p.fechaPago)}</td>
+              <tr key={p.id} className={p.cobradoAt ? "fila-cobrada" : undefined}>
+                <td>
+                  {p.cobradoAt ? "✓ " : ""}
+                  {hora(p.fechaPago)}
+                </td>
                 <td>
                   <Referencia valor={p.referencia} />
                 </td>
                 <td className="num">{bs.format(Number(p.monto))}</td>
-                <td className="tel">{p.telefonoPagador ?? "-"}</td>
+                <td className="tel">{p.cobradoPor ?? "-"}</td>
               </tr>
             ))}
           </tbody>
@@ -211,29 +288,32 @@ function ListaDelDia({ clave, onSalir }: { clave: string; onSalir: () => void })
 }
 
 export default function App() {
-  const [clave, setClaveState] = useState<string | null>(getClave());
+  const [sesion, setSesionState] = useState<Sesion | null>(getSesion());
 
-  const entrar = (c: string) => {
-    setClave(c);
-    setClaveState(c);
+  const entrar = (s: Sesion) => {
+    setSesion(s);
+    setSesionState(s);
   };
   const salir = useCallback(() => {
-    setClave(null);
-    setClaveState(null);
+    setSesion(null);
+    setSesionState(null);
   }, []);
 
-  if (!clave) return <Login onEntrar={entrar} />;
+  if (!sesion) return <Login onEntrar={entrar} />;
 
   return (
     <div className="app">
       <header>
         <h1>Pago Móvil</h1>
-        <button className="salir" onClick={salir}>
-          Salir
-        </button>
+        <div className="usuario">
+          {sesion.nombre}
+          <button className="salir" onClick={salir}>
+            Salir
+          </button>
+        </div>
       </header>
-      <Verificador clave={clave} onSalir={salir} />
-      <ListaDelDia clave={clave} onSalir={salir} />
+      <Verificador sesion={sesion} onSalir={salir} />
+      <ListaDelDia clave={sesion.clave} onSalir={salir} />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 const CLAVE_KEY = "pm_clave";
+const NOMBRE_KEY = "pm_nombre";
 
 export interface Pago {
   id: string;
@@ -7,6 +8,8 @@ export interface Pago {
   referencia: string;
   telefonoPagador: string | null;
   fechaPago: string;
+  cobradoAt: string | null;
+  cobradoPor: string | null;
 }
 
 export interface PagosDelDia {
@@ -16,39 +19,73 @@ export interface PagosDelDia {
   pagos: Pago[];
 }
 
+export interface Sesion {
+  clave: string;
+  nombre: string;
+}
+
 export class NoAutorizado extends Error {}
 
-export function getClave(): string | null {
+export function getSesion(): Sesion | null {
   try {
-    return localStorage.getItem(CLAVE_KEY);
+    const clave = localStorage.getItem(CLAVE_KEY);
+    const nombre = localStorage.getItem(NOMBRE_KEY);
+    return clave && nombre ? { clave, nombre } : null;
   } catch {
     return null;
   }
 }
 
-export function setClave(clave: string | null) {
+export function setSesion(sesion: Sesion | null) {
   try {
-    if (clave) localStorage.setItem(CLAVE_KEY, clave);
-    else localStorage.removeItem(CLAVE_KEY);
+    if (sesion) {
+      localStorage.setItem(CLAVE_KEY, sesion.clave);
+      localStorage.setItem(NOMBRE_KEY, sesion.nombre);
+    } else {
+      localStorage.removeItem(CLAVE_KEY);
+    }
   } catch {
-    // Sin almacenamiento: habrá que escribir la contraseña de nuevo al recargar.
+    // Sin almacenamiento: habrá que entrar de nuevo al recargar.
   }
 }
 
-async function request<T>(path: string, clave: string): Promise<T> {
+export function getNombreGuardado(): string {
+  try {
+    return localStorage.getItem(NOMBRE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+async function request<T>(path: string, clave: string, init?: RequestInit): Promise<{ status: number; data: T }> {
   const res = await fetch(`${API_URL}${path}`, {
-    headers: { Authorization: `Bearer ${clave}` },
+    ...init,
+    headers: { Authorization: `Bearer ${clave}`, "Content-Type": "application/json" },
   });
   if (res.status === 401) throw new NoAutorizado();
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
-  return data;
+  if (!res.ok && res.status !== 409) throw new Error(data.error ?? `Error ${res.status}`);
+  return { status: res.status, data };
 }
 
 export const api = {
   login: (clave: string) => request<{ ok: true }>("/api/login", clave),
-  pagosDelDia: (clave: string, fecha: string) =>
-    request<PagosDelDia>(`/api/pagos?fecha=${fecha}`, clave),
-  buscar: (clave: string, ref: string) =>
-    request<{ ref: string; pagos: Pago[] }>(`/api/pagos/buscar?ref=${encodeURIComponent(ref)}`, clave),
+  pagosDelDia: async (clave: string, fecha: string) =>
+    (await request<PagosDelDia>(`/api/pagos?fecha=${fecha}`, clave)).data,
+  buscar: async (clave: string, ref: string) =>
+    (await request<{ ref: string; pagos: Pago[] }>(`/api/pagos/buscar?ref=${encodeURIComponent(ref)}`, clave)).data,
+  // 200: lo marcó esta cajera. 409: ya estaba cobrado (el pago trae quién y cuándo).
+  cobrar: async (sesion: Sesion, id: string) => {
+    const { status, data } = await request<Pago>(`/api/pagos/${id}/cobrar`, sesion.clave, {
+      method: "POST",
+      body: JSON.stringify({ cobradoPor: sesion.nombre }),
+    });
+    return { yaCobrado: status === 409, pago: data };
+  },
+  deshacer: async (clave: string, id: string) => {
+    const { status, data } = await request<{ ok?: true; error?: string }>(`/api/pagos/${id}/deshacer`, clave, {
+      method: "POST",
+    });
+    if (status === 409) throw new Error(data.error);
+  },
 };

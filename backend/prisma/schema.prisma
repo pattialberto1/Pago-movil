@@ -26,6 +26,8 @@ model PagoRecibido {
   fechaPago      DateTime
   fechaCorreo    DateTime
   rawSnippet     String?
+  cobradoAt      DateTime?
+  cobradoPor     String?
   createdAt      DateTime @default(now())
 
   conciliacion   Conciliacion?

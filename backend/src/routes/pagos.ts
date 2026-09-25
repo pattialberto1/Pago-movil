@@ -46,3 +46,39 @@ pagosRouter.get("/buscar", async (req, res) => {
 
   res.json({ ref, pagos });
 });
+
+// updateMany con cobradoAt: null hace el marcado atómico: si dos cajeras
+// marcan a la vez, solo una gana y la otra recibe 409 con quién lo cobró.
+pagosRouter.post("/:id/cobrar", async (req, res) => {
+  const cobradoPor = String(req.body?.cobradoPor ?? "").trim().slice(0, 60);
+  if (!cobradoPor) {
+    res.status(400).json({ error: "Falta el nombre de quien cobra" });
+    return;
+  }
+
+  const { count } = await prisma.pagoRecibido.updateMany({
+    where: { id: req.params.id, cobradoAt: null },
+    data: { cobradoAt: new Date(), cobradoPor },
+  });
+  const pago = await prisma.pagoRecibido.findUnique({ where: { id: req.params.id } });
+  if (!pago) {
+    res.status(404).json({ error: "Pago no encontrado" });
+    return;
+  }
+
+  res.status(count === 1 ? 200 : 409).json(pago);
+});
+
+const VENTANA_DESHACER_MS = 10 * 60_000;
+
+pagosRouter.post("/:id/deshacer", async (req, res) => {
+  const { count } = await prisma.pagoRecibido.updateMany({
+    where: { id: req.params.id, cobradoAt: { gte: new Date(Date.now() - VENTANA_DESHACER_MS) } },
+    data: { cobradoAt: null, cobradoPor: null },
+  });
+  if (count === 0) {
+    res.status(409).json({ error: "Solo se puede deshacer durante los primeros 10 minutos" });
+    return;
+  }
+  res.json({ ok: true });
+});
