@@ -78,10 +78,25 @@ los correos de Bancaribe se están parseando y conciliando correctamente.
 Si el banco cambia el formato del correo, ajustar las expresiones
 regulares en `backend/src/parser/bancoParser.ts`.
 
-## Despliegue recomendado
+## Uso (cajeras)
 
-- **Railway** o **Render**: backend (API + cron de revisión de correo en el
-  mismo proceso) + PostgreSQL gestionado, corriendo 24/7 sin depender de
-  ninguna computadora encendida.
-- **Frontend**: se puede desplegar junto al backend o por separado (Vercel/Netlify),
-  apuntando `VITE_API_URL` a la URL pública del backend.
+Entran con la contraseña (`APP_PASSWORD`), escriben los últimos 5-6 dígitos
+de la referencia y la app responde **PAGO RECIBIDO** o **NO ENCONTRADO**.
+Debajo aparece la lista de pagos del día (se actualiza cada 30 s) con
+selector de fecha para ver días anteriores.
+
+## Despliegue en Railway
+
+Un solo servicio: el backend sirve también la web ya compilada.
+
+1. Nuevo proyecto → *Deploy from GitHub repo* → este repositorio.
+2. Agregar una base de datos **PostgreSQL** al proyecto.
+3. Variables del servicio: `DATABASE_URL` (referencia a la de Postgres),
+   `APP_PASSWORD`, `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`,
+   `GMAIL_REFRESH_TOKEN`, `BANK_SENDER_EMAIL`.
+4. Railway usa `npm run build` y `npm start` de la raíz; `start` aplica las
+   migraciones antes de arrancar.
+5. Generar un dominio público en *Settings → Networking*.
+
+La política de privacidad para la pantalla de consentimiento de Google queda
+en `https://<dominio>/privacidad.html`.

@@ -9,6 +9,7 @@ function required(name: string): string {
 export const env = {
   port: Number(process.env.PORT ?? 4000),
   databaseUrl: required("DATABASE_URL"),
+  appPassword: required("APP_PASSWORD"),
   gmail: {
     clientId: required("GMAIL_CLIENT_ID"),
     clientSecret: required("GMAIL_CLIENT_SECRET"),

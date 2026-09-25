@@ -1,63 +1,223 @@
-* { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  font-family: system-ui, sans-serif;
-  background: #0f172a;
-  color: #e2e8f0;
-}
-
-.app {
-  max-width: 960px;
+.app,
+.login {
+  max-width: 860px;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: 16px;
 }
 
-h1 { font-size: 1.5rem; }
-h2 { font-size: 1.1rem; margin-top: 2rem; }
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 8px 0;
+}
+
+h2 {
+  font-size: 1.15rem;
+  margin: 0;
+}
+
+.aviso {
+  display: inline-block;
+  background: #fff4d6;
+  color: #8a5a00;
+  border: 1px solid #e0b040;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+input,
+button {
+  font: inherit;
+  border-radius: 8px;
+}
+
+input {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  min-width: 0;
+}
+
+button {
+  padding: 10px 18px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.salir {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+}
+
+.login {
+  max-width: 360px;
+  margin-top: 15vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.error {
+  color: var(--no);
+}
+
+.verificador,
+.dia {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.verificador label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.verificador .fila {
+  display: flex;
+  gap: 8px;
+}
+
+.verificador .fila input {
+  flex: 1;
+  font-size: 1.8rem;
+  letter-spacing: 0.15em;
+  font-variant-numeric: tabular-nums;
+}
+
+.resultado {
+  margin-top: 16px;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.resultado.si {
+  background: var(--ok-bg);
+  border: 2px solid var(--ok);
+}
+
+.resultado.no {
+  background: var(--no-bg);
+  border: 2px solid var(--no);
+}
+
+.resultado .titulo {
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.resultado.si .titulo {
+  color: var(--ok);
+}
+
+.resultado.no .titulo {
+  color: var(--no);
+}
+
+.resultado p {
+  margin: 8px 0 0;
+}
+
+.resultado .nota {
+  color: var(--muted);
+}
+
+.detalle {
+  margin-top: 12px;
+  line-height: 1.5;
+}
+
+.detalle + .detalle {
+  border-top: 1px solid var(--ok);
+  padding-top: 12px;
+}
+
+.detalle .monto {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.dia-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.resumen,
+.vacio {
+  color: var(--muted);
+  margin: 4px 0 0;
+}
 
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 0.5rem;
+  margin-top: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
-th, td {
+th,
+td {
   text-align: left;
-  padding: 0.5rem;
-  border-bottom: 1px solid #334155;
-  font-size: 0.9rem;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
 }
 
-.buscador, .form-pedido {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  flex-wrap: wrap;
+th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.85rem;
 }
 
-input, button {
-  padding: 0.4rem 0.6rem;
-  border-radius: 4px;
-  border: 1px solid #334155;
-  background: #1e293b;
-  color: #e2e8f0;
+.num {
+  text-align: right;
 }
 
-button {
-  cursor: pointer;
-  background: #2563eb;
-  border: none;
+.ref-inicio {
+  color: var(--muted);
 }
 
-.badge {
-  padding: 0.15rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-}
+@media (max-width: 560px) {
+  .tel {
+    display: none;
+  }
 
-.badge-verificado { background: #16a34a; }
-.badge-pendiente { background: #ca8a04; }
-.badge-sin_match { background: #dc2626; }
-.badge-ambiguo { background: #ea580c; }
-.badge-pagado { background: #16a34a; }
+  th,
+  td {
+    padding: 8px 3px;
+    font-size: 0.92rem;
+  }
+
+  .verificador,
+  .dia {
+    padding: 12px;
+  }
+
+  .verificador .fila input {
+    font-size: 1.4rem;
+  }
+}
