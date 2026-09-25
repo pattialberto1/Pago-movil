@@ -46,14 +46,8 @@ export function parseCorreoPagoMovilBancaribe(
   let fechaPago = fechaCorreo;
   if (fechaMatch) {
     const [, dd, mm, yyyy, hh, min, ss] = fechaMatch;
-    fechaPago = new Date(
-      Number(yyyy),
-      Number(mm) - 1,
-      Number(dd),
-      Number(hh),
-      Number(min),
-      Number(ss)
-    );
+    // Hora de Venezuela (UTC-4, sin horario de verano); el servidor puede estar en UTC.
+    fechaPago = new Date(`${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}-04:00`);
   }
 
   return {

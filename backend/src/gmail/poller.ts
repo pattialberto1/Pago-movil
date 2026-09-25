@@ -46,7 +46,7 @@ function stripHtml(html: string): string {
 
 // Los correos de notificación bancaria suelen venir solo en HTML (con banner
 // e imágenes), así que buscamos texto plano si existe y si no, limpiamos el HTML.
-function decodeBody(payload: any): string {
+export function decodeBody(payload: any): string {
   const partePlano = findPart(payload, "text/plain");
   const parteHtml = findPart(payload, "text/html");
   const parte = partePlano ?? parteHtml ?? payload;
@@ -61,21 +61,28 @@ function decodeBody(payload: any): string {
 export async function revisarCorreosNuevos(): Promise<void> {
   const gmail = getGmailClient();
 
-  const list = await gmail.users.messages.list({
-    userId: "me",
-    q: `from:${env.gmail.bankSenderFilter} newer_than:1d`,
-    maxResults: 20,
-  });
-
-  const mensajes = list.data.messages ?? [];
-
-  for (const { id } of mensajes) {
-    if (!id) continue;
-
-    const yaExiste = await prisma.pagoRecibido.findUnique({
-      where: { gmailMessageId: id },
+  const ids: string[] = [];
+  let pageToken: string | undefined;
+  do {
+    const list = await gmail.users.messages.list({
+      userId: "me",
+      q: `from:${env.gmail.bankSenderFilter} newer_than:2d`,
+      maxResults: 500,
+      pageToken,
     });
-    if (yaExiste) continue;
+    for (const m of list.data.messages ?? []) if (m.id) ids.push(m.id);
+    pageToken = list.data.nextPageToken ?? undefined;
+  } while (pageToken);
+
+  const existentes = await prisma.pagoRecibido.findMany({
+    where: { gmailMessageId: { in: ids } },
+    select: { gmailMessageId: true },
+  });
+  const procesados = new Set(existentes.map((e) => e.gmailMessageId));
+
+  // Del más viejo al más nuevo, para conciliar en orden de llegada.
+  for (const id of ids.reverse()) {
+    if (procesados.has(id)) continue;
 
     const detalle = await gmail.users.messages.get({ userId: "me", id });
     const fechaCorreo = new Date(Number(detalle.data.internalDate));
