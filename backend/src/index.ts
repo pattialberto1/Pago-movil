@@ -10,6 +10,8 @@ import { pagosRouter } from "./routes/pagos";
 import { pedidosRouter } from "./routes/pedidos";
 import { conciliacionesRouter } from "./routes/conciliaciones";
 import { notificacionesRouter } from "./routes/notificaciones";
+import { BANCOS, manejarBotonTelegram, verificacionesRouter } from "./routes/verificaciones";
+import { iniciarTelegram, telegramActivo } from "./telegram";
 
 const app = express();
 app.use(cors());
@@ -23,9 +25,13 @@ app.use("/api", requireAuth);
 app.get("/api/login", (_req, res) => {
   res.json({ ok: true });
 });
+app.get("/api/config", (_req, res) => {
+  res.json({ verificacionTelegram: telegramActivo(), bancos: BANCOS });
+});
 app.use("/api/pagos", pagosRouter);
 app.use("/api/pedidos", pedidosRouter);
 app.use("/api/conciliaciones", conciliacionesRouter);
+app.use("/api/verificaciones", verificacionesRouter);
 
 // En producción el mismo servicio sirve el frontend ya compilado.
 const frontendDist = path.resolve(__dirname, "../../frontend/dist");
@@ -49,3 +55,5 @@ cron.schedule(env.pollIntervalCron, async () => {
 });
 
 revisarCorreosNuevos().catch((err) => console.error("Error en revisión inicial:", err));
+
+iniciarTelegram(manejarBotonTelegram);

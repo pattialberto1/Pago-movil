@@ -12,6 +12,12 @@ export const env = {
   appPassword: required("APP_PASSWORD"),
   // Clave del teléfono que reenvía las notificaciones de Banesco; sin ella esa entrada queda desactivada.
   ingestToken: process.env.INGEST_TOKEN ?? "",
+  telegram: {
+    // Sin token el bot queda apagado; sin chats no se pueden pedir verificaciones.
+    token: process.env.TELEGRAM_BOT_TOKEN ?? "",
+    chatIds: (process.env.TELEGRAM_CHAT_ID ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+    apiUrl: process.env.TELEGRAM_API_URL ?? "https://api.telegram.org",
+  },
   gmail: {
     clientId: required("GMAIL_CLIENT_ID"),
     clientSecret: required("GMAIL_CLIENT_SECRET"),

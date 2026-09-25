@@ -28,6 +28,7 @@ model PagoRecibido {
   rawSnippet     String?
   cobradoAt      DateTime?
   cobradoPor     String?
+  verificadoPor  String?
   createdAt      DateTime @default(now())
 
   conciliacion   Conciliacion?
@@ -58,4 +59,25 @@ model Conciliacion {
   revisadoPor  String?
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
+}
+
+enum EstadoVerificacion {
+  PENDIENTE
+  CONFIRMADA
+  RECHAZADA
+}
+
+// Pago que la web no encontró y la cajera pidió verificar por Telegram.
+model SolicitudVerificacion {
+  id               String             @id @default(cuid())
+  banco            String
+  referencia       String
+  monto            Decimal
+  solicitadoPor    String
+  estado           EstadoVerificacion @default(PENDIENTE)
+  resueltoPor      String?
+  resueltoAt       DateTime?
+  telegramMensajes String?
+  pagoId           String?
+  createdAt        DateTime           @default(now())
 }

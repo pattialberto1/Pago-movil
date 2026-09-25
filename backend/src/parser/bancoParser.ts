@@ -27,7 +27,7 @@ const REFERENCIA_RE = /Referencia:\s*(\d+)/i;
 
 // Bancaribe escribe "11954,00" y Banesco "6846.0": el último separador seguido
 // de 1-2 dígitos es el decimal; cualquier otro separador es de miles.
-function parseMonto(raw: string): number {
+export function parseMonto(raw: string): number {
   const limpio = raw.replace(/[.,]$/, "");
   const decimal = limpio.match(/[.,](\d{1,2})$/);
   const entero = (decimal ? limpio.slice(0, -decimal[0].length) : limpio).replace(/[.,]/g, "");

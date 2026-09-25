@@ -7,7 +7,9 @@ import {
   setSesion,
   type Pago,
   type PagosDelDia,
+  type Config,
   type Sesion,
+  type Solicitud,
 } from "./api";
 import "./App.css";
 
@@ -70,7 +72,121 @@ function Login({ onEntrar }: { onEntrar: (sesion: Sesion) => void }) {
 
 type Resultado = { ref: string; pagos: Pago[] } | null;
 
-function Verificador({ sesion, onSalir }: { sesion: Sesion; onSalir: () => void }) {
+function PedirVerificacion({
+  sesion,
+  refInicial,
+  bancos,
+  onSalir,
+  onConfirmado,
+}: {
+  sesion: Sesion;
+  refInicial: string;
+  bancos: string[];
+  onSalir: () => void;
+  onConfirmado: (pago: Pago, cobradoPorMi: boolean) => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [banco, setBanco] = useState(bancos[0] ?? "");
+  const [referencia, setReferencia] = useState(refInicial);
+  const [monto, setMonto] = useState("");
+  const [id, setId] = useState<string | null>(null);
+  const [solicitud, setSolicitud] = useState<Solicitud | null>(null);
+  const [error, setError] = useState("");
+  const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+    const intervalo = setInterval(async () => {
+      try {
+        const s = await api.solicitud(sesion.clave, id);
+        setSolicitud(s);
+        if (s.estado !== "PENDIENTE") clearInterval(intervalo);
+        if (s.estado === "CONFIRMADA" && s.pago) onConfirmado(s.pago, s.pago.cobradoPor === s.solicitadoPor);
+      } catch (err) {
+        if (err instanceof NoAutorizado) onSalir();
+      }
+    }, 3000);
+    return () => clearInterval(intervalo);
+  }, [id, sesion.clave, onSalir, onConfirmado]);
+
+  async function enviar(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setEnviando(true);
+    try {
+      const r = await api.pedirVerificacion(sesion, { banco, referencia, monto });
+      if (r.yaRegistrado) setError("Ese pago ya llegó al sistema. Toca Verificar otra vez.");
+      else if (r.id) setId(r.id);
+    } catch (err) {
+      if (err instanceof NoAutorizado) onSalir();
+      else setError(err instanceof Error ? err.message : "Error");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  if (!abierto) {
+    return (
+      <button className="pedir" onClick={() => setAbierto(true)}>
+        Pedir verificación al encargado
+      </button>
+    );
+  }
+
+  if (!id) {
+    return (
+      <form className="verificacion" onSubmit={enviar}>
+        <label>
+          Banco
+          <select value={banco} onChange={(e) => setBanco(e.target.value)}>
+            {bancos.map((b) => (
+              <option key={b}>{b}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Referencia completa (del comprobante del cliente)
+          <input
+            inputMode="numeric"
+            value={referencia}
+            onChange={(e) => setReferencia(e.target.value.replace(/\D/g, ""))}
+            required
+          />
+        </label>
+        <label>
+          Monto (Bs)
+          <input inputMode="decimal" placeholder="Ej. 12500,00" value={monto} onChange={(e) => setMonto(e.target.value)} required />
+        </label>
+        <div className="fila">
+          <button type="submit" disabled={enviando || referencia.length < 6 || !monto}>
+            Enviar al encargado
+          </button>
+          <button type="button" className="enlace" onClick={() => setAbierto(false)}>
+            Cancelar
+          </button>
+        </div>
+        {referencia.length < 6 && <p className="nota">Escribe la referencia completa, no solo los últimos dígitos.</p>}
+        {error && <p className="error">{error}</p>}
+      </form>
+    );
+  }
+
+  if (!solicitud || solicitud.estado === "PENDIENTE") {
+    return <div className="verif espera">⏳ Esperando que el encargado revise el banco…</div>;
+  }
+
+  if (solicitud.estado === "RECHAZADA") {
+    return (
+      <div className="verif rechazo">
+        ✗ <strong>{solicitud.resueltoPor}</strong> no encontró el pago en el banco. No lo aceptes.
+      </div>
+    );
+  }
+
+  return <div className="verif ok">✓ Pago verificado por {solicitud.resueltoPor}.</div>;
+}
+
+function Verificador({ sesion, config, onSalir }: { sesion: Sesion; config: Config | null; onSalir: () => void }) {
   const [ref, setRef] = useState("");
   const [resultado, setResultado] = useState<Resultado>(null);
   const [marcadosAqui, setMarcadosAqui] = useState<Set<string>>(new Set());
@@ -81,6 +197,11 @@ function Verificador({ sesion, onSalir }: { sesion: Sesion; onSalir: () => void 
     if (err instanceof NoAutorizado) onSalir();
     else setError(err instanceof Error ? err.message : "Error");
   };
+
+  const confirmado = useCallback((pago: Pago, cobradoPorMi: boolean) => {
+    if (cobradoPorMi) setMarcadosAqui((m) => new Set(m).add(pago.id));
+    setResultado((r) => r && { ref: r.ref, pagos: [pago] });
+  }, []);
 
   const reemplazar = (pago: Pago) =>
     setResultado((r) => r && { ...r, pagos: r.pagos.map((p) => (p.id === pago.id ? pago : p)) });
@@ -165,7 +286,21 @@ function Verificador({ sesion, onSalir }: { sesion: Sesion; onSalir: () => void 
           <p>
             No hay ningún pago con referencia terminada en <strong>{resultado.ref}</strong> en los últimos 3 días.
           </p>
-          <p className="nota">Si el cliente acaba de pagar, espera 2 minutos y vuelve a verificar.</p>
+          <p className="nota">
+            Si el cliente acaba de pagar, espera 2 minutos y vuelve a verificar. A veces el banco no envía el
+            aviso: si el cliente insiste en que pagó, no lo rechaces sin{" "}
+            {config?.verificacionTelegram ? "pedir verificación." : "revisar los movimientos del banco."}
+          </p>
+          {config?.verificacionTelegram && (
+            <PedirVerificacion
+              key={resultado.ref}
+              sesion={sesion}
+              refInicial={resultado.ref}
+              bancos={config.bancos}
+              onSalir={onSalir}
+              onConfirmado={confirmado}
+            />
+          )}
         </div>
       )}
 
@@ -188,6 +323,7 @@ function Verificador({ sesion, onSalir }: { sesion: Sesion; onSalir: () => void 
                 Ref. <Referencia valor={p.referencia} resaltar={resultado.ref.length} />
               </div>
               {p.telefonoPagador && <div>Tel. {p.telefonoPagador}</div>}
+              {p.verificadoPor && <div className="nota">Verificado manualmente por {p.verificadoPor}</div>}
 
               {!p.cobradoAt && (
                 <button className="cobrar" onClick={() => cobrar(p)} disabled={ocupado}>
@@ -297,6 +433,12 @@ function ListaDelDia({ clave, onSalir }: { clave: string; onSalir: () => void })
 
 export default function App() {
   const [sesion, setSesionState] = useState<Sesion | null>(getSesion());
+  const [config, setConfig] = useState<Config | null>(null);
+
+  useEffect(() => {
+    if (!sesion) return;
+    api.config(sesion.clave).then(setConfig).catch(() => setConfig(null));
+  }, [sesion]);
 
   const entrar = (s: Sesion) => {
     setSesion(s);
@@ -320,7 +462,7 @@ export default function App() {
           </button>
         </div>
       </header>
-      <Verificador sesion={sesion} onSalir={salir} />
+      <Verificador sesion={sesion} config={config} onSalir={salir} />
       <ListaDelDia clave={sesion.clave} onSalir={salir} />
     </div>
   );

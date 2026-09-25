@@ -11,6 +11,7 @@ export interface Pago {
   fechaPago: string;
   cobradoAt: string | null;
   cobradoPor: string | null;
+  verificadoPor: string | null;
 }
 
 export interface PagosDelDia {
@@ -23,6 +24,19 @@ export interface PagosDelDia {
 export interface Sesion {
   clave: string;
   nombre: string;
+}
+
+export interface Config {
+  verificacionTelegram: boolean;
+  bancos: string[];
+}
+
+export interface Solicitud {
+  id: string;
+  estado: "PENDIENTE" | "CONFIRMADA" | "RECHAZADA";
+  resueltoPor: string | null;
+  solicitadoPor: string;
+  pago: Pago | null;
 }
 
 export class NoAutorizado extends Error {}
@@ -83,6 +97,17 @@ export const api = {
     });
     return { yaCobrado: status === 409, pago: data };
   },
+  config: async (clave: string) => (await request<Config>("/api/config", clave)).data,
+  // 409: el pago ya estaba registrado (llegó el aviso del banco mientras tanto).
+  pedirVerificacion: async (sesion: Sesion, datos: { banco: string; referencia: string; monto: string }) => {
+    const { status, data } = await request<{ id?: string; error?: string }>("/api/verificaciones", sesion.clave, {
+      method: "POST",
+      body: JSON.stringify({ ...datos, solicitadoPor: sesion.nombre }),
+    });
+    return { yaRegistrado: status === 409, id: data.id, error: data.error };
+  },
+  solicitud: async (clave: string, id: string) =>
+    (await request<Solicitud>(`/api/verificaciones/${id}`, clave)).data,
   deshacer: async (clave: string, id: string) => {
     const { status, data } = await request<{ ok?: true; error?: string }>(`/api/pagos/${id}/deshacer`, clave, {
       method: "POST",
