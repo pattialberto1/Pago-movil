@@ -12,6 +12,11 @@ export const notificacionesRouter = Router();
 // un Android (MacroDroid). Acepta texto plano o JSON con el texto en cualquier campo.
 notificacionesRouter.post("/banesco", text({ type: "*/*", limit: "16kb" }), async (req, res) => {
   if (!claveCorrecta(String(req.query.clave ?? ""), env.ingestToken)) {
+    console.warn(
+      env.ingestToken
+        ? "Notificación de Banesco rechazada: la clave de la URL no coincide con INGEST_TOKEN"
+        : "Notificación de Banesco rechazada: falta la variable INGEST_TOKEN en el servidor"
+    );
     res.status(401).json({ error: "Clave incorrecta" });
     return;
   }
@@ -33,6 +38,7 @@ notificacionesRouter.post("/banesco", text({ type: "*/*", limit: "16kb" }), asyn
       data: { ...pago, fechaCorreo: new Date(), rawSnippet: texto.slice(0, 500) },
     });
     await intentarConciliar(creado.id);
+    console.log(`Notificación de Banesco guardada: Bs ${pago.monto} REF ${pago.referencia}`);
     res.status(201).json({ ok: true, referencia: pago.referencia });
   } catch (err) {
     // Android puede repetir la misma notificación: la referencia ya está guardada.
