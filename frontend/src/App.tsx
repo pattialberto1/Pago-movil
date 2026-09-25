@@ -182,7 +182,7 @@ function Verificador({ sesion, onSalir }: { sesion: Sesion; onSalir: () => void 
               {diaDe(p.fechaPago) !== hoy() && <div className="aviso">⚠ Este pago NO es de hoy</div>}
               <div className="monto">Bs {bs.format(Number(p.monto))}</div>
               <div>
-                {diaLargo(p.fechaPago)}, {hora(p.fechaPago)}
+                <strong>{p.banco}</strong> · {diaLargo(p.fechaPago)}, {hora(p.fechaPago)}
               </div>
               <div>
                 Ref. <Referencia valor={p.referencia} resaltar={resultado.ref.length} />
@@ -236,6 +236,8 @@ function ListaDelDia({ clave, onSalir }: { clave: string; onSalir: () => void })
 
   const esHoy = fecha === hoy();
   const cobrados = datos?.pagos.filter((p) => p.cobradoAt).length ?? 0;
+  const porBanco = new Map<string, number>();
+  for (const p of datos?.pagos ?? []) porBanco.set(p.banco, (porBanco.get(p.banco) ?? 0) + Number(p.monto));
 
   return (
     <section className="dia">
@@ -248,6 +250,11 @@ function ListaDelDia({ clave, onSalir }: { clave: string; onSalir: () => void })
           {datos && (
             <p className="resumen">
               {datos.cantidad} pagos · {cobrados} cobrados · Bs {bs.format(datos.total)}
+            </p>
+          )}
+          {porBanco.size > 1 && (
+            <p className="resumen">
+              {[...porBanco].map(([banco, total]) => `${banco}: Bs ${bs.format(total)}`).join(" · ")}
             </p>
           )}
         </div>
@@ -275,6 +282,7 @@ function ListaDelDia({ clave, onSalir }: { clave: string; onSalir: () => void })
                 </td>
                 <td>
                   <Referencia valor={p.referencia} />
+                  <div className="banco">{p.banco}</div>
                 </td>
                 <td className="num">{bs.format(Number(p.monto))}</td>
                 <td className="tel">{p.cobradoPor ?? "-"}</td>

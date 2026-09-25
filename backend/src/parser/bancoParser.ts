@@ -25,10 +25,13 @@ const TELEFONO_PAGADOR_RE = /Tel[eé]fono pagador:\s*(\d+)/i;
 const TELEFONO_RECEPTOR_RE = /Tel[eé]fono receptor:\s*(\d+)/i;
 const REFERENCIA_RE = /Referencia:\s*(\d+)/i;
 
-function parseMontoVenezolano(raw: string): number {
-  // "11.954,00" o "11954,00" -> 11954.00
-  const normalizado = raw.replace(/\./g, "").replace(",", ".");
-  return Number.parseFloat(normalizado);
+// Bancaribe escribe "11954,00" y Banesco "6846.0": el último separador seguido
+// de 1-2 dígitos es el decimal; cualquier otro separador es de miles.
+function parseMonto(raw: string): number {
+  const limpio = raw.replace(/[.,]$/, "");
+  const decimal = limpio.match(/[.,](\d{1,2})$/);
+  const entero = (decimal ? limpio.slice(0, -decimal[0].length) : limpio).replace(/[.,]/g, "");
+  return Number.parseFloat(decimal ? `${entero}.${decimal[1]}` : entero);
 }
 
 export function parseCorreoPagoMovilBancaribe(
@@ -52,10 +55,37 @@ export function parseCorreoPagoMovilBancaribe(
 
   return {
     banco: "Bancaribe",
-    monto: parseMontoVenezolano(montoMatch[1]),
+    monto: parseMonto(montoMatch[1]),
     referencia: referenciaMatch[1],
     telefonoPagador: telefonoPagadorMatch?.[1] ?? null,
     telefonoReceptor: telefonoReceptorMatch?.[1] ?? null,
     fechaPago,
+  };
+}
+
+/**
+ * Notificación push de la app de Banesco (reenviada desde un Android). Formato:
+ *
+ *   Has recibido un Pago Movil
+ *   BANESCO REGISTRO: Pago recibido a traves de Pago Movil por Bs. 1234.0 el
+ *   01/01/2026; 12:00 REF 000000000000. Para mas inf. llama +580000000000.
+ *
+ * No incluye el teléfono de quien paga.
+ */
+const BANESCO_RE =
+  /Pago recibido a trav[eé]s de Pago M[oó]vil por Bs\.?\s*([\d.,]+)\s+el\s+(\d{2})\/(\d{2})\/(\d{4});?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s+REF\.?\s*(\d+)/i;
+
+export function parseNotificacionBanesco(texto: string): PagoParseado | null {
+  const m = texto.replace(/\s+/g, " ").match(BANESCO_RE);
+  if (!m) return null;
+
+  const [, monto, dd, mm, yyyy, hh, min, ss = "00", referencia] = m;
+  return {
+    banco: "Banesco",
+    monto: parseMonto(monto),
+    referencia,
+    telefonoPagador: null,
+    telefonoReceptor: null,
+    fechaPago: new Date(`${yyyy}-${mm}-${dd}T${hh.padStart(2, "0")}:${min}:${ss}-04:00`),
   };
 }

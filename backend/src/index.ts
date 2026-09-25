@@ -9,6 +9,7 @@ import { revisarCorreosNuevos } from "./gmail/poller";
 import { pagosRouter } from "./routes/pagos";
 import { pedidosRouter } from "./routes/pedidos";
 import { conciliacionesRouter } from "./routes/conciliaciones";
+import { notificacionesRouter } from "./routes/notificaciones";
 
 const app = express();
 app.use(cors());
@@ -17,6 +18,7 @@ app.use(express.json());
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
+app.use("/notificaciones", notificacionesRouter);
 app.use("/api", requireAuth);
 app.get("/api/login", (_req, res) => {
   res.json({ ok: true });

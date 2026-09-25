@@ -94,6 +94,11 @@ export async function revisarCorreosNuevos(): Promise<void> {
       continue;
     }
 
+    const repetido = await prisma.pagoRecibido.findUnique({
+      where: { banco_referencia: { banco: parseado.banco, referencia: parseado.referencia } },
+    });
+    if (repetido) continue;
+
     const pago = await prisma.pagoRecibido.create({
       data: {
         gmailMessageId: id,

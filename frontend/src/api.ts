@@ -4,6 +4,7 @@ const NOMBRE_KEY = "pm_nombre";
 
 export interface Pago {
   id: string;
+  banco: string;
   monto: string;
   referencia: string;
   telefonoPagador: string | null;

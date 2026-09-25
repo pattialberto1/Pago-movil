@@ -17,7 +17,7 @@ enum EstadoConciliacion {
 
 model PagoRecibido {
   id             String   @id @default(cuid())
-  gmailMessageId String   @unique
+  gmailMessageId String?  @unique
   banco          String
   monto          Decimal
   referencia     String?
@@ -31,6 +31,8 @@ model PagoRecibido {
   createdAt      DateTime @default(now())
 
   conciliacion   Conciliacion?
+
+  @@unique([banco, referencia])
 }
 
 model PedidoPendiente {

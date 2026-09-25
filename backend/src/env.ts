@@ -10,6 +10,8 @@ export const env = {
   port: Number(process.env.PORT ?? 4000),
   databaseUrl: required("DATABASE_URL"),
   appPassword: required("APP_PASSWORD"),
+  // Clave del teléfono que reenvía las notificaciones de Banesco; sin ella esa entrada queda desactivada.
+  ingestToken: process.env.INGEST_TOKEN ?? "",
   gmail: {
     clientId: required("GMAIL_CLIENT_ID"),
     clientSecret: required("GMAIL_CLIENT_SECRET"),
