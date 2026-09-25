@@ -106,7 +106,13 @@ td .banco {
 }
 
 .fila-cobrada td {
-  color: var(--muted);
+  background: var(--ok-bg);
+  border-bottom-color: #bfe3ca;
+}
+
+.fila-cobrada .check {
+  color: var(--ok);
+  font-weight: 800;
 }
 
 button.salir {

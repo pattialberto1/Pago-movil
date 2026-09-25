@@ -277,7 +277,7 @@ function ListaDelDia({ clave, onSalir }: { clave: string; onSalir: () => void })
             {datos.pagos.map((p) => (
               <tr key={p.id} className={p.cobradoAt ? "fila-cobrada" : undefined}>
                 <td>
-                  {p.cobradoAt ? "✓ " : ""}
+                  {p.cobradoAt && <span className="check">✓ </span>}
                   {hora(p.fechaPago)}
                 </td>
                 <td>
