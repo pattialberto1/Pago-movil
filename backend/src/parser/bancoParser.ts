@@ -70,10 +70,11 @@ export function parseCorreoPagoMovilBancaribe(
  *   BANESCO REGISTRO: Pago recibido a traves de Pago Movil por Bs. 1234.0 el
  *   01/01/2026; 12:00 REF 000000000000. Para mas inf. llama +580000000000.
  *
+ * Cuando el pago viene de otro banco agrega el nombre: "...Pago Movil de NOMBRE por Bs...".
  * No incluye el teléfono de quien paga.
  */
 const BANESCO_RE =
-  /Pago recibido a trav[eé]s de Pago M[oó]vil por Bs\.?\s*([\d.,]+)\s+el\s+(\d{2})\/(\d{2})\/(\d{4});?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s+REF\.?\s*(\d+)/i;
+  /Pago recibido a trav[eé]s de Pago M[oó]vil(?:\s+de\s+.+?)?\s+por Bs\.?\s*([\d.,]+)\s+el\s+(\d{2})\/(\d{2})\/(\d{4});?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s+REF\.?\s*(\d+)/i;
 
 export function parseNotificacionBanesco(texto: string): PagoParseado | null {
   const m = texto.replace(/\s+/g, " ").match(BANESCO_RE);

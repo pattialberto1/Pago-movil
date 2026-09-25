@@ -9,7 +9,7 @@ import { revisarCorreosNuevos } from "./gmail/poller";
 import { pagosRouter } from "./routes/pagos";
 import { pedidosRouter } from "./routes/pedidos";
 import { conciliacionesRouter } from "./routes/conciliaciones";
-import { notificacionesRouter } from "./routes/notificaciones";
+import { notificacionesRouter, reprocesarNotificacionesPendientes } from "./routes/notificaciones";
 import { BANCOS, manejarBotonTelegram, verificacionesRouter } from "./routes/verificaciones";
 import { iniciarTelegram, telegramActivo } from "./telegram";
 
@@ -55,5 +55,6 @@ cron.schedule(env.pollIntervalCron, async () => {
 });
 
 revisarCorreosNuevos().catch((err) => console.error("Error en revisión inicial:", err));
+reprocesarNotificacionesPendientes().catch((err) => console.error("Error reprocesando notificaciones:", err));
 
 iniciarTelegram(manejarBotonTelegram);

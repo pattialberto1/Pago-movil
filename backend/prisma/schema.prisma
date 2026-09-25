@@ -81,3 +81,12 @@ model SolicitudVerificacion {
   pagoId           String?
   createdAt        DateTime           @default(now())
 }
+
+// Notificaciones que no se pudieron interpretar; se reintentan en cada arranque
+// para recuperar pagos cuando se corrige el lector.
+model NotificacionPendiente {
+  id        String   @id @default(cuid())
+  banco     String
+  texto     String
+  createdAt DateTime @default(now())
+}

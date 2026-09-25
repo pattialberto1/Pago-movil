@@ -58,6 +58,10 @@ export function decodeBody(payload: any): string {
   return parte === parteHtml ? stripHtml(decodificado) : decodificado;
 }
 
+// Correos que no son pagos recibidos; se recuerdan hasta el próximo reinicio
+// para no volver a descargarlos ni repetir el aviso cada 2 minutos.
+const ignorados = new Set<string>();
+
 export async function revisarCorreosNuevos(): Promise<void> {
   const gmail = getGmailClient();
 
@@ -82,7 +86,7 @@ export async function revisarCorreosNuevos(): Promise<void> {
 
   // Del más viejo al más nuevo, para conciliar en orden de llegada.
   for (const id of ids.reverse()) {
-    if (procesados.has(id)) continue;
+    if (procesados.has(id) || ignorados.has(id)) continue;
 
     const detalle = await gmail.users.messages.get({ userId: "me", id });
     const fechaCorreo = new Date(Number(detalle.data.internalDate));
@@ -90,7 +94,11 @@ export async function revisarCorreosNuevos(): Promise<void> {
 
     const parseado = parseCorreoPagoMovilBancaribe(texto, fechaCorreo);
     if (!parseado) {
-      console.warn(`No se pudo parsear el correo ${id}, revisar formato`);
+      ignorados.add(id);
+      // Bancaribe usa el mismo remitente para los pagos móviles que hace la propia cuenta.
+      if (!/usted\s+realiz[oó]\s+un\s+Pago\s+M[oó]vil/i.test(texto)) {
+        console.warn(`No se pudo parsear el correo ${id}, revisar formato`);
+      }
       continue;
     }
 
