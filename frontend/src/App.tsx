@@ -112,7 +112,9 @@ function PedirVerificacion({
   onConfirmado: (pago: Pago, cobradoPorMi: boolean) => void;
 }) {
   const [abierto, setAbierto] = useState(false);
-  const [banco, setBanco] = useState(bancos[0] ?? "");
+  // Con un solo banco no hay nada que elegir; con varios, la cajera debe tocar
+  // uno para no enviar la solicitud al banco equivocado por descuido.
+  const [banco, setBanco] = useState(bancos.length === 1 ? bancos[0] : "");
   const [referencia, setReferencia] = useState(refInicial);
   const [monto, setMonto] = useState("");
   const [id, setId] = useState<string | null>(null);
@@ -162,14 +164,24 @@ function PedirVerificacion({
   if (!id) {
     return (
       <form className="verificacion" onSubmit={enviar}>
-        <label>
-          Banco
-          <select value={banco} onChange={(e) => setBanco(e.target.value)}>
+        <div className="campo">
+          <span id="banco-etiqueta">¿A qué banco pagó el cliente?</span>
+          <div className="bancos" role="radiogroup" aria-labelledby="banco-etiqueta">
             {bancos.map((b) => (
-              <option key={b}>{b}</option>
+              <button
+                key={b}
+                type="button"
+                role="radio"
+                aria-checked={banco === b}
+                className={banco === b ? "banco-opcion elegido" : "banco-opcion"}
+                onClick={() => setBanco(b)}
+              >
+                {banco === b && "✓ "}
+                {b}
+              </button>
             ))}
-          </select>
-        </label>
+          </div>
+        </div>
         <label>
           Referencia completa (del comprobante del cliente)
           <input
@@ -184,13 +196,14 @@ function PedirVerificacion({
           <input inputMode="decimal" placeholder="Ej. 12500,00" value={monto} onChange={(e) => setMonto(e.target.value)} required />
         </label>
         <div className="fila">
-          <button type="submit" disabled={enviando || referencia.length < 6 || !monto}>
+          <button type="submit" disabled={enviando || !banco || referencia.length < 6 || !monto}>
             Enviar al encargado
           </button>
           <button type="button" className="enlace" onClick={() => setAbierto(false)}>
             Cancelar
           </button>
         </div>
+        {!banco && <p className="nota">Toca el banco al que pagó el cliente.</p>}
         {referencia.length < 6 && <p className="nota">Escribe la referencia completa, no solo los últimos dígitos.</p>}
         {error && <p className="error">{error}</p>}
       </form>
