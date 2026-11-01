@@ -339,3 +339,13 @@ th {
     font-size: 1.4rem;
   }
 }
+
+.dia-acciones {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+button.exportar {
+  background: var(--ok);
+}
