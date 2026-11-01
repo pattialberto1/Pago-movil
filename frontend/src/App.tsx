@@ -11,6 +11,7 @@ import {
   type Sesion,
   type Solicitud,
 } from "./api";
+import { crearExcel, descargar } from "./excel";
 import "./App.css";
 
 const TZ = "America/Caracas";
@@ -30,6 +31,31 @@ const diaLargo = (iso: string) => {
 };
 const diaDe = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: TZ });
 const cuando = (iso: string) => (diaDe(iso) === hoy() ? `hoy a las ${hora(iso)}` : `${diaLargo(iso)}, ${hora(iso)}`);
+
+const fechaHora = (iso: string) => `${new Date(iso).toLocaleDateString("es-VE", { timeZone: TZ })} ${hora(iso)}`;
+
+// Ordenados de la primera a la última hora del día, como en un estado de cuenta.
+function exportarExcel(datos: PagosDelDia, cobrados: number) {
+  const filas = [...datos.pagos].reverse().map((p) => [
+    hora(p.fechaPago),
+    p.banco,
+    p.referencia,
+    Number(p.monto),
+    p.telefonoPagador,
+    p.cobradoAt ? "Sí" : "No",
+    p.cobradoPor,
+    p.cobradoAt ? fechaHora(p.cobradoAt) : null,
+    p.verificadoPor,
+  ]);
+  const blob = crearExcel(
+    datos.fecha,
+    ["Hora", "Banco", "Referencia", "Monto (Bs)", "Teléfono pagador", "Cobrado", "Cobrado por", "Fecha cobro", "Verificado por"],
+    filas,
+    [`${datos.cantidad} pagos`, `${cobrados} cobrados`, "Total", datos.total],
+    [8, 12, 22, 14, 16, 9, 16, 18, 16],
+  );
+  descargar(blob, `pagos-${datos.fecha}.xlsx`);
+}
 
 function Referencia({ valor, resaltar = 6 }: { valor: string; resaltar?: number }) {
   const corte = Math.max(0, valor.length - resaltar);
@@ -394,7 +420,14 @@ function ListaDelDia({ clave, onSalir }: { clave: string; onSalir: () => void })
             </p>
           )}
         </div>
-        <input type="date" value={fecha} max={hoy()} onChange={(e) => e.target.value && setFecha(e.target.value)} />
+        <div className="dia-acciones">
+          <input type="date" value={fecha} max={hoy()} onChange={(e) => e.target.value && setFecha(e.target.value)} />
+          {datos && datos.pagos.length > 0 && (
+            <button className="exportar" onClick={() => exportarExcel(datos, cobrados)}>
+              Descargar Excel
+            </button>
+          )}
+        </div>
       </div>
 
       {datos && datos.pagos.length === 0 && <p className="vacio">No hay pagos este día.</p>}
