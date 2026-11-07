@@ -28,6 +28,7 @@ export interface Sesion {
 
 export interface Config {
   verificacionTelegram: boolean;
+  consultaMercantil: boolean;
   bancos: string[];
 }
 
@@ -106,6 +107,13 @@ export const api = {
     });
     return { yaRegistrado: status === 409, id: data.id, error: data.error };
   },
+  consultarMercantil: async (clave: string, datos: { referencia: string; monto: string; telefono: string }) =>
+    (
+      await request<{ encontrado: boolean; pagos: Pago[] }>("/api/mercantil/buscar", clave, {
+        method: "POST",
+        body: JSON.stringify(datos),
+      })
+    ).data,
   solicitud: async (clave: string, id: string) =>
     (await request<Solicitud>(`/api/verificaciones/${id}`, clave)).data,
   deshacer: async (clave: string, id: string) => {

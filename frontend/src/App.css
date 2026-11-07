@@ -369,3 +369,9 @@ th {
 button.exportar {
   background: var(--ok);
 }
+
+button.consultar-banco {
+  margin-top: 12px;
+  width: 100%;
+  background: var(--ok);
+}

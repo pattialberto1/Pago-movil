@@ -5,7 +5,7 @@ import { env } from "../env";
 import { parseMonto } from "../parser/bancoParser";
 import { editarMensaje, enviarATodos, responderBoton, telegramActivo, type CallbackQuery } from "../telegram";
 
-export const BANCOS = ["Bancaribe", "Banesco"];
+export const BANCOS = ["Bancaribe", "Banesco", "Mercantil"];
 
 const bs = new Intl.NumberFormat("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const hora = (d: Date) =>
