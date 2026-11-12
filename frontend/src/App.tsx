@@ -15,6 +15,8 @@ import { crearExcel, descargar } from "./excel";
 import "./App.css";
 
 const TZ = "America/Caracas";
+// Debe coincidir con VERIFICADO_POR_API del backend (routes/mercantil.ts).
+const VERIFICADO_POR_API = "consulta a Mercantil";
 const bs = new Intl.NumberFormat("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const hoy = () => new Date().toLocaleDateString("en-CA", { timeZone: TZ });
@@ -225,6 +227,78 @@ function PedirVerificacion({
   return <div className="verif ok">✓ Pago verificado por {solicitud.resueltoPor}.</div>;
 }
 
+// Mercantil permite consultar el pago directamente, pero exige monto y teléfono del cliente.
+function ConsultarMercantil({
+  clave,
+  referencia,
+  onSalir,
+  onEncontrado,
+}: {
+  clave: string;
+  referencia: string;
+  onSalir: () => void;
+  onEncontrado: (pagos: Pago[]) => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [monto, setMonto] = useState("");
+  const [telefono, setTelefono] = useState("");
+  const [consultando, setConsultando] = useState(false);
+  const [mensaje, setMensaje] = useState("");
+
+  async function consultar(e: React.FormEvent) {
+    e.preventDefault();
+    setMensaje("");
+    setConsultando(true);
+    try {
+      const r = await api.consultarMercantil(clave, { referencia, monto, telefono });
+      if (r.encontrado) onEncontrado(r.pagos);
+      else setMensaje("Mercantil no tiene un pago con esos datos (ni hoy ni ayer). Revisa el monto y el teléfono con el cliente.");
+    } catch (err) {
+      if (err instanceof NoAutorizado) onSalir();
+      else setMensaje(err instanceof Error ? err.message : "Error");
+    } finally {
+      setConsultando(false);
+    }
+  }
+
+  if (!abierto) {
+    return (
+      <button className="consultar-banco" onClick={() => setAbierto(true)}>
+        ¿Pagó a Mercantil? Consultar al banco
+      </button>
+    );
+  }
+
+  return (
+    <form className="verificacion" onSubmit={consultar}>
+      <strong>Consultar a Mercantil · Ref. terminada en {referencia.slice(-6)}</strong>
+      <label>
+        Monto exacto (Bs)
+        <input inputMode="decimal" placeholder="Ej. 12500,00" value={monto} onChange={(e) => setMonto(e.target.value)} required />
+      </label>
+      <label>
+        Teléfono desde el que pagó el cliente
+        <input
+          inputMode="tel"
+          placeholder="Ej. 04141234567"
+          value={telefono}
+          onChange={(e) => setTelefono(e.target.value.replace(/[^\d]/g, ""))}
+          required
+        />
+      </label>
+      <div className="fila">
+        <button type="submit" disabled={consultando || !monto || telefono.length < 10}>
+          {consultando ? "Consultando…" : "Consultar"}
+        </button>
+        <button type="button" className="enlace" onClick={() => setAbierto(false)}>
+          Cancelar
+        </button>
+      </div>
+      {mensaje && <p className="error">{mensaje}</p>}
+    </form>
+  );
+}
+
 function Verificador({ sesion, config, onSalir }: { sesion: Sesion; config: Config | null; onSalir: () => void }) {
   const [ref, setRef] = useState("");
   const [resultado, setResultado] = useState<Resultado>(null);
@@ -330,6 +404,15 @@ function Verificador({ sesion, config, onSalir }: { sesion: Sesion; config: Conf
             aviso: si el cliente insiste en que pagó, no lo rechaces sin{" "}
             {config?.verificacionTelegram ? "pedir verificación." : "revisar los movimientos del banco."}
           </p>
+          {config?.consultaMercantil && (
+            <ConsultarMercantil
+              key={`m-${resultado.ref}`}
+              clave={sesion.clave}
+              referencia={resultado.ref}
+              onSalir={onSalir}
+              onEncontrado={(pagos) => setResultado((r) => r && { ref: r.ref, pagos })}
+            />
+          )}
           {config?.verificacionTelegram && (
             <PedirVerificacion
               key={resultado.ref}
@@ -362,7 +445,10 @@ function Verificador({ sesion, config, onSalir }: { sesion: Sesion; config: Conf
                 Ref. <Referencia valor={p.referencia} resaltar={resultado.ref.length} />
               </div>
               {p.telefonoPagador && <div>Tel. {p.telefonoPagador}</div>}
-              {p.verificadoPor && <div className="nota">Verificado manualmente por {p.verificadoPor}</div>}
+              {p.verificadoPor === VERIFICADO_POR_API && <div className="nota">Confirmado consultando a Mercantil</div>}
+              {p.verificadoPor && p.verificadoPor !== VERIFICADO_POR_API && (
+                <div className="nota">Verificado manualmente por {p.verificadoPor}</div>
+              )}
 
               {!p.cobradoAt && (
                 <button className="cobrar" onClick={() => cobrar(p)} disabled={ocupado}>

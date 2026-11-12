@@ -11,6 +11,8 @@ import { pedidosRouter } from "./routes/pedidos";
 import { conciliacionesRouter } from "./routes/conciliaciones";
 import { notificacionesRouter, reprocesarNotificacionesPendientes } from "./routes/notificaciones";
 import { BANCOS, manejarBotonTelegram, verificacionesRouter } from "./routes/verificaciones";
+import { mercantilRouter } from "./routes/mercantil";
+import { mercantilActivo } from "./mercantil";
 import { iniciarTelegram, telegramActivo } from "./telegram";
 
 const app = express();
@@ -26,12 +28,13 @@ app.get("/api/login", (_req, res) => {
   res.json({ ok: true });
 });
 app.get("/api/config", (_req, res) => {
-  res.json({ verificacionTelegram: telegramActivo(), bancos: BANCOS });
+  res.json({ verificacionTelegram: telegramActivo(), consultaMercantil: mercantilActivo(), bancos: BANCOS });
 });
 app.use("/api/pagos", pagosRouter);
 app.use("/api/pedidos", pedidosRouter);
 app.use("/api/conciliaciones", conciliacionesRouter);
 app.use("/api/verificaciones", verificacionesRouter);
+app.use("/api/mercantil", mercantilRouter);
 
 // En producción el mismo servicio sirve el frontend ya compilado.
 const frontendDist = path.resolve(__dirname, "../../frontend/dist");

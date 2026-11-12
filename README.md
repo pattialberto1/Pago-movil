@@ -98,5 +98,19 @@ Un solo servicio: el backend sirve también la web ya compilada.
    migraciones antes de arrancar.
 5. Generar un dominio público en *Settings → Networking*.
 
+### Consulta directa a Mercantil (opcional)
+
+Con estas variables, cuando una referencia sale NO ENCONTRADO aparece el botón
+"¿Pagó a Mercantil? Consultar al banco": la cajera escribe el monto y el
+teléfono del cliente y la app consulta el API "Búsqueda de Transacciones
+Móviles" de Mercantil (hoy y ayer). Si el banco lo confirma, se guarda como
+cualquier otro pago.
+
+`MERCANTIL_CLIENT_ID` (Client ID del portal de APIs), `MERCANTIL_SECRET_KEY`
+(clave de cifrado), `MERCANTIL_MERCHANT_ID`, `MERCANTIL_INTEGRATOR_ID` (1 si no
+les dan otro), `MERCANTIL_TERMINAL_ID` (1 si no les dan otro),
+`MERCANTIL_TELEFONO` (teléfono de la cuenta que recibe los pagos) y
+`MERCANTIL_AMBIENTE` (`certificacion` o `produccion`).
+
 La política de privacidad para la pantalla de consentimiento de Google queda
 en `https://<dominio>/privacidad.html`.

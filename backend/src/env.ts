@@ -26,5 +26,18 @@ export const env = {
     // Correo/remitente del banco que envía las notificaciones de pago móvil.
     bankSenderFilter: required("BANK_SENDER_EMAIL"),
   },
+  // Consulta directa al API de Mercantil; queda apagada si falta alguno de los datos que entrega el banco.
+  mercantil: {
+    clientId: process.env.MERCANTIL_CLIENT_ID ?? "",
+    secretKey: process.env.MERCANTIL_SECRET_KEY ?? "",
+    merchantId: Number(process.env.MERCANTIL_MERCHANT_ID ?? 0),
+    integratorId: Number(process.env.MERCANTIL_INTEGRATOR_ID ?? 1),
+    terminalId: process.env.MERCANTIL_TERMINAL_ID ?? "1",
+    // Teléfono de la cuenta jurídica que recibe los pagos móviles.
+    telefono: process.env.MERCANTIL_TELEFONO ?? "",
+    ambiente: process.env.MERCANTIL_AMBIENTE === "produccion" ? ("produccion" as const) : ("certificacion" as const),
+    // Solo para pruebas: día extra a consultar (AAAA-MM-DD), p. ej. la fecha de la data de prueba del banco.
+    fechaPrueba: process.env.MERCANTIL_FECHA_PRUEBA ?? "",
+  },
   pollIntervalCron: process.env.POLL_INTERVAL_CRON ?? "*/2 * * * *",
 };
