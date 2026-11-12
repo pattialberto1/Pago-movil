@@ -10,12 +10,14 @@ const URLS = {
   produccion: "https://apimbu.mercantilbanco.com/mercantil-banco/prod/v1/mobile-payment/search",
 };
 
-// Mercantil responde este código cuando no hay transacciones para el criterio.
-const SIN_RESULTADOS = "9033";
+// Códigos de "no hay transacciones para el criterio": la documentación dice 9033,
+// pero el sandbox responde 0330.
+const SIN_RESULTADOS = ["9033", "0330"];
 
 export interface TransaccionMercantil {
   trx_date: string;
-  payment_reference: string;
+  // Mercantil la devuelve como número aunque la documentación diga texto.
+  payment_reference: string | number;
   amount: number;
   payment_method?: string;
   trx_type?: string;
@@ -53,7 +55,8 @@ export async function buscarPagoMovil(datos: {
   const m = env.mercantil;
   const cuerpo = {
     merchant_identify: { integratorId: m.integratorId, merchantId: m.merchantId, terminalId: m.terminalId },
-    client_identify: { ipaddress: datos.ip, browser_agent: "pago-movil" },
+    // Sin "mobile" el API falla con 500 (code 99999).
+    client_identify: { ipaddress: datos.ip, browser_agent: "pago-movil", mobile: { manufacturer: "Generic" } },
     search_by: {
       amount: datos.monto,
       currency: "ves",
@@ -78,7 +81,7 @@ export async function buscarPagoMovil(datos: {
   if (res.ok && data?.transaction_list) return data.transaction_list;
 
   const errores = data?.error_list ? [data.error_list].flat() : [];
-  if (errores.some((e) => e.error_code === SIN_RESULTADOS)) return [];
+  if (errores.some((e) => SIN_RESULTADOS.includes(e.error_code))) return [];
   const detalle = errores.map((e) => `${e.error_code}: ${e.description}`).join("; ") || `HTTP ${res.status}`;
   console.error("Error del API de Mercantil:", detalle);
   throw new ErrorMercantil(detalle);

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma";
+import { env } from "../env";
 import { parseMonto } from "../parser/bancoParser";
 import { intentarConciliar } from "../reconciliation/matcher";
 import { buscarPagoMovil, ErrorMercantil, mercantilActivo, telefonoMercantil, type TransaccionMercantil } from "../mercantil";
@@ -14,7 +15,7 @@ const diaVenezuela = (ms: number) => new Date(ms - 4 * HORA_MS).toISOString().sl
 export const mercantilRouter = Router();
 
 async function guardar(trx: TransaccionMercantil, telefonoPagador: string) {
-  const referencia = trx.payment_reference;
+  const referencia = String(trx.payment_reference);
   const existente = await prisma.pagoRecibido.findUnique({ where: { banco_referencia: { banco: BANCO, referencia } } });
   if (existente) return existente;
 
@@ -66,7 +67,9 @@ mercantilRouter.post("/buscar", async (req, res) => {
   const ip = req.ip?.replace(/^::ffff:/, "") || "127.0.0.1";
   const telefonoPagador = `0${telefono.slice(2)}`;
   try {
-    for (const fecha of [diaVenezuela(Date.now()), diaVenezuela(Date.now() - 24 * HORA_MS)]) {
+    const fechas = [diaVenezuela(Date.now()), diaVenezuela(Date.now() - 24 * HORA_MS)];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(env.mercantil.fechaPrueba)) fechas.push(env.mercantil.fechaPrueba);
+    for (const fecha of fechas) {
       const encontrados = await buscarPagoMovil({ referencia, monto, telefonoPagador: telefono, fecha, ip });
       if (encontrados.length > 0) {
         const pagos = [];

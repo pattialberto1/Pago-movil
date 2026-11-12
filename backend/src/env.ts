@@ -36,6 +36,8 @@ export const env = {
     // Teléfono de la cuenta jurídica que recibe los pagos móviles.
     telefono: process.env.MERCANTIL_TELEFONO ?? "",
     ambiente: process.env.MERCANTIL_AMBIENTE === "produccion" ? ("produccion" as const) : ("certificacion" as const),
+    // Solo para pruebas: día extra a consultar (AAAA-MM-DD), p. ej. la fecha de la data de prueba del banco.
+    fechaPrueba: process.env.MERCANTIL_FECHA_PRUEBA ?? "",
   },
   pollIntervalCron: process.env.POLL_INTERVAL_CRON ?? "*/2 * * * *",
 };
